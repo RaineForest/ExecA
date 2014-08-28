@@ -4,3 +4,6 @@ asm: main.o
 
 main.o: main.c
 	gcc -std=c99 -Wall -c main.c -o main.o
+
+clean:
+	rm *.o asm
