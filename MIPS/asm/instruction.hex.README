@@ -1,0 +1,8 @@
+first 5 bytes - mnemonic
+next 1 byte - R (1), I (2), J (3)
+next 1 byte - opcode
+next 1 byte - funct (if applicable)
+
+total 8 bytes per instruction
+
+mfcZ and mtcZ, where Z is the register, need special cases
