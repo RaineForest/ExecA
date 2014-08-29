@@ -5,6 +5,7 @@
 #include "dlList.h"
 #include <stdlib.h>
 #include <string.h>
+#include <byteswap.h>
 
 #define INSTR_LEN 6
 #define REG_LEN 6
@@ -40,6 +41,15 @@ int findInstr(instruction_T arr[], int size, char* string, int len) {
 	return -1;
 }
 
+int findReg(register_T arr[], int size, char* string, int len) {
+	for(int i = 0; i < size; i++) {
+		if(strncmp(string, arr[i].name, len) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 DlList_T getParams(char* str) {
 	DlList_T params;
 	params = dll_create();
@@ -66,7 +76,7 @@ int main(int argc, char* argv[]) {
 		instructions[i].type = fgetc(lut);
 		instructions[i].opcode = fgetc(lut);
 		instructions[i].funct = fgetc(lut);
-//		printf("%5s, %c, %d, %d\n", instructions[i].name, (int)instructions[i].type, (int)instructions[i].opcode, (int)instructions[i].funct);
+//		printf("%5s, %c, 0x%x, 0x%x\n", instructions[i].name, (int)instructions[i].type, (int)instructions[i].opcode, (int)instructions[i].funct);
 	}
 	fclose(lut);
 
@@ -97,28 +107,56 @@ int main(int argc, char* argv[]) {
 		
 		DlList_T params = getParams(line);
 
-		int size = dll_size(params);
+		/*int size = dll_size(params);
 		for(int j = 0; j < size; j++) {
 			char* stuff = (char*)dll_get(params, j);
 			printf("%s\n", stuff);
-		}
-/*
+		}*/
+
 		int index = 0;
-		if(index = findInstr(instructions, NUM_INSTR, dll_get(params, 0)) >= 0) {
+		char* mnemonic = (char*)dll_get(params, 0);
+		if((index = findInstr(instructions, NUM_INSTR, mnemonic, strlen(mnemonic))) >= 0) {
+//			printf("%5s, %c, %#x, %#x\n", instructions[index].name, (int)instructions[index].type, (int)instructions[index].opcode, (int)instructions[index].funct);
+
 			binaryinterp = instructions[index].opcode;
-			binaryinterp << 26;
+			binaryinterp <<= 26;
 			switch(instructions[index].type) {
-				case 'R':
-					
-					break;
+				case 'R': {
+//TODO: add param nums to instructions.hex and make this a loop
+					unsigned int bits2add = 0;
+					//first operand
+					char* regname = (char*)dll_get(params, 2);
+					int regindex = findReg(registers, NUM_REG, regname, strlen(regname));
+					bits2add = (unsigned int)registers[regindex].reg;
+					binaryinterp += bits2add << 21;
+					//second operand
+					regname = (char*)dll_get(params, 3);
+					regindex = findReg(registers, NUM_REG, regname, strlen(regname));
+					bits2add = (unsigned int)registers[regindex].reg;
+					binaryinterp += bits2add << 16;
+					//destination
+					regname = (char*)dll_get(params, 1);
+					regindex = findReg(registers, NUM_REG, regname, strlen(regname));
+					bits2add = (unsigned int)registers[regindex].reg;
+					binaryinterp += bits2add << 11;
+					//funct
+					bits2add = instructions[index].funct;
+					binaryinterp += bits2add;
+					break; }
 				case 'I':
 					break;
 				case 'J':
 					break;
 				default:
+					break;
 			}
 		}
-*/
+
+		printf("%#x\n", binaryinterp);
+		//switch endianness
+		binaryinterp = __bswap_32(binaryinterp);
+		fwrite((void*)&binaryinterp, 1, sizeof(binaryinterp), outHandle);
+
 		dll_destroy(params);
 		free(line);
 	}
