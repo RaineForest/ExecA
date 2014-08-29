@@ -1,5 +1,7 @@
 first 5 bytes - mnemonic
 next 1 byte - R (1), I (2), J (3)
+next 1 byte - number of args
+next 3 bytes - instruction->bin order argument mapping
 next 1 byte - opcode
 next 1 byte - funct (if applicable)
 
