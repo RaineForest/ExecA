@@ -9,4 +9,4 @@ dlList.o: dlList.h dlList.c
 	gcc -std=c99 -Wall -c dlList.c -o dlList.o
 
 clean:
-	rm *.o asm
+	rm *.o asm *.exe

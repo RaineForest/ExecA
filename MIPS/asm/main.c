@@ -1,22 +1,31 @@
 
-#define _GNU_SOURCE
-
 #include <stdio.h>
 #include "dlList.h"
 #include <stdlib.h>
 #include <string.h>
-#include <byteswap.h>
+//#include <byteswap.h> not supported in MinGW
 
 #define INSTR_LEN 6
 #define REG_LEN 6
-#define NUM_INSTR 42
+#define NUM_INSTR 43
 #define NUM_REG 32
+#define MAX_ARGS 3
 #define TOKENS " ,()\n"
 #define MAX_LINE 80
+
+//since not defined on all systems
+unsigned int bswap_32(unsigned int thing) {
+	int new = (thing << 24) + (thing >> 24);
+	new += ((thing >> 16) << 24) >> 16;
+	new += ((thing << 16) >> 24) << 16;
+	return new;
+}
 
 typedef struct instruction {
 	char name[INSTR_LEN];
 	char type;
+	unsigned char numArgs;
+	unsigned char argMap[MAX_ARGS];
 	unsigned char opcode;
 	unsigned char funct;
 } instruction_T;
@@ -74,6 +83,10 @@ int main(int argc, char* argv[]) {
 	for(int i = 0; i < NUM_INSTR; i++) {
 		fgets(instructions[i].name, INSTR_LEN, lut);
 		instructions[i].type = fgetc(lut);
+		instructions[i].numArgs = fgetc(lut);
+		for(int j = 0; j < MAX_ARGS; j++) {
+			instructions[i].argMap[j] = fgetc(lut);
+		}
 		instructions[i].opcode = fgetc(lut);
 		instructions[i].funct = fgetc(lut);
 //		printf("%5s, %c, 0x%x, 0x%x\n", instructions[i].name, (int)instructions[i].type, (int)instructions[i].opcode, (int)instructions[i].funct);
@@ -92,27 +105,29 @@ int main(int argc, char* argv[]) {
 
 	DlList_T labels = dll_create();
 	FILE* inHandle = fopen(inFile, "r");
-	FILE* outHandle = fopen(outFile, "wb");
 	
-	for(int i = 0; !feof(inHandle); i+=4) {
+	DlList_T toWrite = dll_create();
+	
+	int error = 0;
+	for(int i = 0; ; i++) {
 		unsigned int binaryinterp = 0;
 		unsigned int linelen = MAX_LINE;
-		char* line = (char*)malloc(MAX_LINE);
-		int ret = getline(&line, &linelen, inHandle);
-		if (ret == -1) {
-			free(line);
+		char line[MAX_LINE];
+		char* err = fgets(line, linelen, inHandle);
+
+		if(err == NULL) {
 			break;
 		}
 		printf("%s\n", line);
 		
 		DlList_T params = getParams(line);
-
-		/*int size = dll_size(params);
+/*
+		int size = dll_size(params);
 		for(int j = 0; j < size; j++) {
 			char* stuff = (char*)dll_get(params, j);
-			printf("%s\n", stuff);
-		}*/
-
+			printf("\"%s\"\n", stuff);
+		}
+*/
 		int index = 0;
 		char* mnemonic = (char*)dll_get(params, 0);
 		if((index = findInstr(instructions, NUM_INSTR, mnemonic, strlen(mnemonic))) >= 0) {
@@ -122,23 +137,19 @@ int main(int argc, char* argv[]) {
 			binaryinterp <<= 26;
 			switch(instructions[index].type) {
 				case 'R': {
-//TODO: add param nums to instructions.hex and make this a loop
 					unsigned int bits2add = 0;
-					//first operand
-					char* regname = (char*)dll_get(params, 2);
-					int regindex = findReg(registers, NUM_REG, regname, strlen(regname));
-					bits2add = (unsigned int)registers[regindex].reg;
-					binaryinterp += bits2add << 21;
-					//second operand
-					regname = (char*)dll_get(params, 3);
-					regindex = findReg(registers, NUM_REG, regname, strlen(regname));
-					bits2add = (unsigned int)registers[regindex].reg;
-					binaryinterp += bits2add << 16;
-					//destination
-					regname = (char*)dll_get(params, 1);
-					regindex = findReg(registers, NUM_REG, regname, strlen(regname));
-					bits2add = (unsigned int)registers[regindex].reg;
-					binaryinterp += bits2add << 11;
+					for(int j = 0; j < instructions[index].numArgs; j++) {	
+						char* regname = (char*)dll_get(params, j+1);
+						int regindex = 0;
+						regindex = findReg(registers, NUM_REG, regname, strlen(regname));
+						if(regindex == -1) {
+							fprintf(stderr, "Unknown parameter %d on line %d\n", j+1, i+1);
+							error = 1;
+							continue;
+						}
+						bits2add = (unsigned int)registers[regindex].reg;
+						binaryinterp += bits2add << (26 - 5*instructions[index].argMap[j]);
+					}
 					//funct
 					bits2add = instructions[index].funct;
 					binaryinterp += bits2add;
@@ -151,18 +162,31 @@ int main(int argc, char* argv[]) {
 					break;
 			}
 		}
-
-		printf("%#x\n", binaryinterp);
+		
+		printf("0x%08x\n", binaryinterp);
 		//switch endianness
-		binaryinterp = __bswap_32(binaryinterp);
-		fwrite((void*)&binaryinterp, 1, sizeof(binaryinterp), outHandle);
+		binaryinterp = bswap_32(binaryinterp);
+		dll_append(toWrite, (void*)binaryinterp);
+		//fwrite((void*)&binaryinterp, sizeof(binaryinterp), 1, outHandle);
 
 		dll_destroy(params);
-		free(line);
 	}
 	
 	fclose(inHandle);
-	fclose(outHandle);
 	dll_destroy(labels);
+	
+	if(error == 0) {
+		FILE* outHandle = fopen(outFile, "wb");
+		int numInstr = dll_size(toWrite);
+		dll_move_to(toWrite, 0);
+		unsigned int thing = (unsigned int)dll_get(toWrite, 0);
+		for(int i = 0; i < numInstr; i++) {
+			fwrite((void*)&thing, 1, sizeof(thing), outHandle);
+			thing = (unsigned int)dll_next(toWrite);
+		}
+		fclose(outHandle);
+	}
+	
+	dll_destroy(toWrite);
 	return 0;
 }
