@@ -35,10 +35,10 @@ typedef struct register_ {
 	unsigned char reg;
 } register_T;
 
-struct label {
+typedef struct label {
 	char* labelname;
 	unsigned short address;
-};
+} label_T;
 
 //sequestial search, cuz not sorted
 int findInstr(instruction_T arr[], int size, char* string, int len) {
@@ -59,6 +59,40 @@ int findReg(register_T arr[], int size, char* string, int len) {
 	return -1;
 }
 
+unsigned int getFileSize(FILE* file) {
+	fseek(file, 0, SEEK_END);
+	unsigned int temp = ftell(file);
+	fseek(file, 0, SEEK_SET);
+	return temp;
+}
+
+//////////////////////////////////////////////////////////
+/*
+TODO: down the road, make this a separate library, but this will work for now
+strpos will become a hashtable with src pointer key and strpos value
+implement sseek() and stuff like that
+*/
+int strpos = 0;
+
+char* sgets(char* str, int num, char* src) {
+	if(strpos >= strlen(src)) {
+		return NULL;
+	}
+	int i = 0;
+	for(; i < num-1; i++) {
+		if(src[strpos] == '\n' || src[strpos] == '\0') {
+			strpos++;
+			break;
+		} else {
+			str[i] = src[strpos];
+		}
+		strpos++;
+	}
+	str[i] = '\0';
+	return str;
+}
+////////////////////////////////////////////////////////////
+
 DlList_T getParams(char* str) {
 	DlList_T params;
 	params = dll_create();
@@ -77,7 +111,20 @@ int main(int argc, char* argv[]) {
 	}
 	char* inFile = argv[1];
 	char* outFile = argv[2];
-
+	
+	FILE* inHandle = fopen(inFile, "r");
+	unsigned int filesize = getFileSize(inHandle);
+	char* fileInMemory = (char*)malloc(sizeof(char)*(filesize+1));
+	if(fread(fileInMemory, 1, filesize, inHandle) < filesize) {
+		if(ferror(inHandle)) {
+			perror("fread");
+			fprintf(stderr, "Failed to read %s", inFile);
+			return 1;
+		}
+	}
+	fileInMemory[filesize] = '\0';
+	fclose(inHandle);
+	
 	FILE* lut = fopen("instruction.hex", "rb");
 	instruction_T instructions[NUM_INSTR];
 	for(int i = 0; i < NUM_INSTR; i++) {
@@ -104,21 +151,19 @@ int main(int argc, char* argv[]) {
 	fclose(reg);
 
 	DlList_T labels = dll_create();
-	FILE* inHandle = fopen(inFile, "r");
 	
 	DlList_T toWrite = dll_create();
 	
 	int error = 0;
 	for(int i = 0; ; i++) {
 		unsigned int binaryinterp = 0;
-		unsigned int linelen = MAX_LINE;
 		char line[MAX_LINE];
-		char* err = fgets(line, linelen, inHandle);
+		char* err = sgets(line, MAX_LINE, fileInMemory);
 
 		if(err == NULL) {
 			break;
 		}
-		//printf("%s\n", line);
+		printf("%s\n", line);
 		
 		DlList_T params = getParams(line);
 /*
@@ -176,8 +221,8 @@ int main(int argc, char* argv[]) {
 		dll_destroy(params);
 	}
 	
-	fclose(inHandle);
 	dll_destroy(labels);
+	free(fileInMemory);
 	
 	if(error == 0) {
 		FILE* outHandle = fopen(outFile, "wb");
@@ -191,6 +236,8 @@ int main(int argc, char* argv[]) {
 		fclose(outHandle);
 	} else {
 		fprintf(stderr, "Assemble fail: %d error%c\n", error, error>1 ? 's' : ' ');
+		dll_destroy(toWrite);
+		return 1;
 	}
 	
 	dll_destroy(toWrite);
