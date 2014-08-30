@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 		if(err == NULL) {
 			break;
 		}
-		printf("%s\n", line);
+		//printf("%s\n", line);
 		
 		DlList_T params = getParams(line);
 /*
@@ -132,7 +132,6 @@ int main(int argc, char* argv[]) {
 		char* mnemonic = (char*)dll_get(params, 0);
 		if((index = findInstr(instructions, NUM_INSTR, mnemonic, strlen(mnemonic))) >= 0) {
 //			printf("%5s, %c, %#x, %#x\n", instructions[index].name, (int)instructions[index].type, (int)instructions[index].opcode, (int)instructions[index].funct);
-
 			binaryinterp = instructions[index].opcode;
 			binaryinterp <<= 26;
 			switch(instructions[index].type) {
@@ -143,8 +142,8 @@ int main(int argc, char* argv[]) {
 						int regindex = 0;
 						regindex = findReg(registers, NUM_REG, regname, strlen(regname));
 						if(regindex == -1) {
-							fprintf(stderr, "Unknown parameter %d on line %d\n", j+1, i+1);
-							error = 1;
+							fprintf(stderr, "%s:%d, Unknown parameter %d \"%s\"\n", inFile, i+1, j+1, regname);
+							error++;
 							continue;
 						}
 						bits2add = (unsigned int)registers[regindex].reg;
@@ -161,9 +160,14 @@ int main(int argc, char* argv[]) {
 				default:
 					break;
 			}
+		} else {
+			fprintf(stderr, "%s:%d, Unknown instruction \"%s\"\n", inFile, i+1, mnemonic);
+			error++;
+			dll_destroy(params);
+			continue;
 		}
 		
-		printf("0x%08x\n", binaryinterp);
+		//printf("0x%08x\n", binaryinterp);
 		//switch endianness
 		binaryinterp = bswap_32(binaryinterp);
 		dll_append(toWrite, (void*)binaryinterp);
@@ -185,6 +189,8 @@ int main(int argc, char* argv[]) {
 			thing = (unsigned int)dll_next(toWrite);
 		}
 		fclose(outHandle);
+	} else {
+		fprintf(stderr, "Assemble fail: %d error%c\n", error, error>1 ? 's' : ' ');
 	}
 	
 	dll_destroy(toWrite);
