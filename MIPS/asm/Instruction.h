@@ -1,5 +1,5 @@
 
-#ifdef _INSTRUCTION_H_
+#ifndef _INSTRUCTION_H_
 #define _INSTRUCTION_H_
 
 /**

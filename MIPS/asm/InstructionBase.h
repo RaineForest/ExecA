@@ -1,5 +1,5 @@
 
-#ifdef _INSTRUCTIONBASE_H_
+#ifndef _INSTRUCTIONBASE_H_
 #define _INSTRUCTIONBASE_H_
 
 #include "Instruction.h"
