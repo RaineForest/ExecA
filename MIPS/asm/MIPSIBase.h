@@ -16,12 +16,16 @@ using std::string;
  */
 class MIPSIBase : public InstructionBase {
 private:
-    typedef std::map<string, MIPSInstruction> IMap;
+    typedef std::map<string, MIPSInstruction*> IMap;
+    typedef std::pair<string, MIPSInstruction*> IPair;
     IMap base;
 
 public:
+    MIPSIBase();
+    ~MIPSIBase();
+
     int load(string filename);
-    Instruction get(string name);
+    Instruction* get(string name);
 };
 
 #endif

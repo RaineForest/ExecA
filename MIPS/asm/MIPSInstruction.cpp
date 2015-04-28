@@ -30,3 +30,28 @@ void MIPSInstruction::toExecutable(uint32_t* bytes, uint32_t* args) {
             break;
     }
 }
+
+char* MIPSInstruction::getMnemonic() {
+    return mnemonic;
+}
+
+MIPSIType MIPSInstruction::getType() {
+    return type;
+}
+
+uint8_t MIPSInstruction::getNumArgs() {
+    return numArgs;
+}
+
+uint8_t* MIPSInstruction::getArgMap() {
+    return argMap;
+}
+
+uint8_t MIPSInstruction::getOpcode() {
+    return opcode;
+}
+
+uint8_t MIPSInstruction::getFunct() {
+    return funct;
+}
+

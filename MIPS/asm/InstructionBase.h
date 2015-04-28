@@ -14,7 +14,7 @@ using std::string;
 class InstructionBase {
 	public:
 		virtual int load(string filename) = 0;
-		virtual Instruction get(string name) = 0;
+		virtual Instruction* get(string name) = 0;
 };
 
 #endif
