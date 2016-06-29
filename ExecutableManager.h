@@ -2,6 +2,9 @@
 #ifndef _EXECUTABLEMANAGER_H_
 #define _EXECUTABLEMANAGER_H_
 
+#define PACKAGE 1
+#define PACKAGE_NAME 1
+
 #include <cstdint>
 #include <string>
 
@@ -16,9 +19,9 @@ public:
 	~ExecutableManager();
 
 	int read(string filename);
-	void getSectionNames();
-	void getSectionTypes();
-	void getSection(int n);
+
+	int getSectionSize(int n);
+	int getSection(int n, void* contents, int contentsLen);
 
 private:
 	bfd* bfdHandle;

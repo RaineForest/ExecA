@@ -1,4 +1,6 @@
 
+//compile with: g++ ExecutableManager.cpp ExecutableTest.cpp -o ExecutableTest -lbfd
+
 #include <cstdio>
 #include <string>
 #include "ExecutableManager.h"
@@ -11,7 +13,25 @@ int main(int argc, char** argv) {
 
 	ExecutableManager* em = new ExecutableManager();
 
-	em->read(string(argv[1]));
+	if(em->read(string(argv[1]))) {
+		delete em;
+		return 1;
+	}
+
+	printf("1\n");
+	const int SECTION = 1;
+	int secSize = em->getSectionSize(SECTION);
+	if(secSize == -1) {
+		delete em;
+		return 1;
+	}
+	printf("2\n");
+	uint8_t* sec = new uint8_t[secSize];
+	if(em->getSection(SECTION, sec, secSize)) {
+		delete em;
+		return 1;
+	}
+	printf("3\n");
 
 	delete em;
 
