@@ -17,8 +17,9 @@ public:
 	virtual void read(string filename) = 0;
 
 	virtual void getSection(int sectionNum, uint8_t* buffer, unsigned int len) const = 0;
+	virtual int getNumSections() const = 0;
 
-	virtual Endianness getEndianness() = 0;
+	virtual Endianness getEndianness() const = 0;
 
 	//virtual InstructionSet* getArch() = 0;
 };
