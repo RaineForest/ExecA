@@ -48,13 +48,13 @@ int ELF32::getNumProgramHeaders() const {
 	return change_endian<uint16_t>(header->ph_num);
 }
 
-void ELF32::getSection(int sectionNum, uint8_t* buffer, unsigned int len) const {
+int ELF32::getSection(int sectionNum, uint8_t* buffer, unsigned int len) const {
 	memcpy(buffer, &data[change_endian<uint32_t>(sHeaders[sectionNum].s_offset)], 
 		min(len, change_endian<uint32_t>(sHeaders[sectionNum].s_size)));
 }
 
 int ELF32::getSectionSize(int s) {
-	return change_endian<uint16_t>(sHeaders[s].s_size);
+	return change_endian<uint32_t>(sHeaders[s].s_size);
 }
 
 int ELF32::getNumSections() const {

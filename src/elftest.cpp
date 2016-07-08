@@ -1,10 +1,12 @@
 
 #include "elf.h"
 #include <cstdio>
+#include <cstdlib>
+#include <cstdint>
 
 int main(int argc, char** argv) {
-	if(argc != 2) {
-		printf("Usage: elftest <elf file>\n");
+	if(argc != 4) {
+		printf("Usage: elftest <elf file> <section #> <dump file>\n");
 		return 1;
 	}
 
@@ -29,6 +31,20 @@ int main(int argc, char** argv) {
 	for(int i = 0; i < e->getNumSections(); i++) {
 		e->printSectionHeaderInfo(i);
 	}
+
+	int secNum = atoi(argv[2]);
+	if(secNum < 0 || secNum >= e->getNumSections()) {
+		printf("not a valid section number");
+		delete e;
+		return 1;
+	}
+	int size = e->getSectionSize(secNum);
+	uint8_t* buffer = new uint8_t[size];
+	e->getSection(secNum, buffer, size);
+
+	FILE* fid = fopen(argv[3], "wb");
+	fwrite(buffer, sizeof(uint8_t), size, fid);
+	fclose(fid);
 
 	delete e;
 
