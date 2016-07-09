@@ -1,6 +1,6 @@
 
-#ifndef _ELF64_H_
-#define _ELF64_H_
+#ifndef _ELF32_H_
+#define _ELF32_H_
 
 #include "executable.h"
 #include <stdint.h>
@@ -19,9 +19,9 @@ typedef struct {
 	uint16_t type;
 	uint16_t isa;
 	uint32_t version2;
-	uint64_t entry;
-	uint64_t ph_off; //program header offset
-	uint64_t sh_off; //section header offset
+	uint32_t entry;
+	uint32_t ph_off; //program header offset
+	uint32_t sh_off; //section header offset
 	uint32_t flags;
 	uint16_t header_size;
 	uint16_t ph_ent_size;
@@ -29,36 +29,36 @@ typedef struct {
 	uint16_t sh_ent_size;
 	uint16_t sh_num;
 	uint16_t sh_str_index;
-} ELF64_Header;
+} ELF32_Header;
 
 typedef struct {
 	uint32_t p_type;
+	uint32_t p_offset;
+	uint32_t p_vaddr;
+	uint32_t p_paddr;
+	uint32_t p_filesz;
+	uint32_t p_memsz;
 	uint32_t p_flags;
-	uint64_t p_offset;
-	uint64_t p_vaddr;
-	uint64_t p_paddr;
-	uint64_t p_filesz;
-	uint64_t p_memsz;
-	uint64_t p_align;
-} ELF64_Program_Header;
+	uint32_t p_align;
+} ELF32_Program_Header;
 
 typedef struct {
 	uint32_t s_name;
 	uint32_t s_type;
-	uint64_t s_flags;
-	uint64_t s_addr;
-	uint64_t s_offset;
-	uint64_t s_size;
+	uint32_t s_flags;
+	uint32_t s_addr;
+	uint32_t s_offset;
+	uint32_t s_size;
 	uint32_t s_link;
 	uint32_t s_info;
-	uint64_t s_addralign;
-	uint64_t s_entsize;
-} ELF64_Section_Header;
+	uint32_t s_addralign;
+	uint32_t s_entsize;
+} ELF32_Section_Header;
 
-class ELF64 : Executable {
+class ELF32 : public Executable {
 public:
-	ELF64();
-	~ELF64();
+	ELF32();
+	~ELF32();
 
 	static bool isOfType(string filename);
 	void read(string filename);
@@ -79,9 +79,9 @@ public:
 
 private:
 
-	ELF64_Header* header;
-	ELF64_Program_Header* pHeaders;
-	ELF64_Section_Header* sHeaders;
+	ELF32_Header* header;
+	ELF32_Program_Header* pHeaders;
+	ELF32_Section_Header* sHeaders;
 
 	uint8_t* data;
 	int dataLen;

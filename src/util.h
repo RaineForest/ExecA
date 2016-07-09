@@ -3,8 +3,16 @@
 #define _UTIL_H_
 
 #include <climits>
+#include <cstdint>
 
 using namespace std;
+
+typedef enum {
+	BIG,
+	LITTLE
+} Endianness;
+
+Endianness getSystemEndianness();
 
 template <typename T>
 T change_endian(T num) {
@@ -19,6 +27,15 @@ T change_endian(T num) {
 	}
 
 	return dst.n;
+}
+
+template <typename T>
+T correct_endian(T num, Endianness numEnd) {
+	if(getSystemEndianness() == numEnd) {
+		return num;
+	} else {
+		return change_endian<T>(num);
+	}
 }
 
 #endif
