@@ -2,6 +2,7 @@
 #include "mips.h"
 #include <cstdlib>
 #include <string>
+#include <sstream>
 
 typedef struct {
 	int opcode;
@@ -61,7 +62,7 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 		throw err;
 	}
 
-	*out = "";
+	stringstream s;
 
 	instructionRow irow;
 	string instrQuery = "select * from instruction where opcode = ";
@@ -90,7 +91,7 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 				instruction_callback);
 		}
 
-		*out += irow.mnemonic + "\t";
+		s << showbase << irow.mnemonic << "\t";
 
 		switch(irow.type) {
 			case 'R': {
@@ -98,27 +99,30 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 				sqlQuery(db, &rrs, regQuery+to_string(rs)+";", register_callback);
 				sqlQuery(db, &rrt, regQuery+to_string(rt)+";", register_callback);
 				sqlQuery(db, &rrd, regQuery+to_string(rd)+";", register_callback);
-				*out += (irow.rd ? ("$"+rrd.mnemonic + string(", ")) : string(""))
-					+ (irow.rs ? ("$"+rrs.mnemonic + string(", ")) : string(""))
-					+ (irow.rt ? ("$"+rrt.mnemonic + ((irow.shamt || !irow.rd) ? string(", ") 
+				s << (irow.rd ? ("$"+rrd.mnemonic + string(", ")) : string(""))
+					<< (irow.rs ? ("$"+rrs.mnemonic+string(", ")) : string(""))
+					<< (irow.rt ? ("$"+rrt.mnemonic+((irow.shamt||!irow.rd) ? string(", ") 
 						: string(" "))) : string(""))
-					+ (irow.shamt ? to_string(shamt) : string(""))
-					+ string("\n");
+					<< (irow.shamt ? to_string(shamt) : string(""))
+					<< string("\n");
 				} break;
 			case 'I': {
 				registerRow rrs, rrt;
 				sqlQuery(db, &rrs, regQuery+to_string(rs)+";", register_callback);
 				sqlQuery(db, &rrt, regQuery+to_string(rt)+";", register_callback);
-				*out += irow.paren 
-					? ((irow.rt ? ("$"+rrt.mnemonic + string(", ")) : string(""))
-						+ to_string(immediate) + string("(")
-						+ (irow.rs ? "$"+rrs.mnemonic : string("")) + string(")\n"))
-					: ((irow.rt ? ("$"+rrt.mnemonic + ", ") : "")
-						+ (irow.rs ? "$"+rrs.mnemonic + ", " : "")
-						+ to_string(immediate) + "\n");
+				irow.paren 
+					? s << (irow.rt ? (string("$")+rrt.mnemonic + string(", ")) : string(""))
+						<< immediate 
+						<< string("(")
+						<< (irow.rs ? string("$")+rrs.mnemonic : string("")) 
+						<< string(")\n")
+					: s << (irow.rt ? (string("$")+rrt.mnemonic + ", ") : "")
+						<< (irow.rs ? string("$")+rrs.mnemonic + ", " : "")
+						<< hex << immediate << dec
+						<< string("\n");
 				} break;
 			case 'J': {
-				*out += to_string(addr) + "\n";
+				s << hex << addr << dec << "\n";
 				} break;
 			default: //shouldn't happen
 				break;
@@ -126,6 +130,8 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 	}
 
 	sqlite3_close(db);
+
+	*out = s.str();
 }
 
 void MIPS::assemble(string asminstr, uint8_t** data, int* len) {
