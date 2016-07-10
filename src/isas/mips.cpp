@@ -63,53 +63,62 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 
 	*out = "";
 
-	MIPS_Instruction* instrs = (MIPS_Instruction*) data;
-
 	instructionRow irow;
 	string instrQuery = "select * from instruction where opcode = ";
 	string regQuery = "select * from register where number = ";
 	// each instr is 4 bytes long
-	for(int i = 0; i < len / 4; i++) {
-		if(instrs[i].opcode == 0) {
+	for(int i = 0; i < len; i += 4) {
+		uint8_t opcode = data[i+0] >> 2;
+		uint8_t rs = (((data[i+0] << 3)) & 0x18) | (data[i+1] >> 5);
+		uint8_t rt = data[i+1] & 0x1f;
+		uint8_t rd = data[i+2] >> 3;
+		uint8_t shamt = (((data[i+2] << 2)) & 0x1c) | (data[i+3] >> 6);
+		uint8_t funct = data[i+3] & 0x3f;
+		uint16_t immediate = ((uint16_t)data[i+2] << 8) | (uint16_t) data[i+3];
+		uint32_t addr = ((uint32_t) (data[i+0] & 0x03) << 24) 
+				| (uint32_t) data[i+1] << 16
+				| (uint32_t) data[i+2] << 8
+				| (uint32_t) data[i+3];
+		if(opcode == 0) {
 			sqlQuery(db, &irow, 
-				instrQuery + to_string(instrs[i].opcode) + " and funct = " 
-					+ to_string(instrs[i].R.funct) + ";", 
+				instrQuery + to_string(opcode) + " and funct = " 
+					+ to_string(funct) + ";", 
 				instruction_callback);
 		} else {
 			sqlQuery(db, &irow, 
-				instrQuery + to_string(instrs[i].opcode) + ";", 
+				instrQuery + to_string(opcode) + ";", 
 				instruction_callback);
 		}
 
-		*out += irow.mnemonic + " ";
+		*out += irow.mnemonic + "\t";
 
 		switch(irow.type) {
 			case 'R': {
-				registerRow rs, rt, rd;
-				sqlQuery(db, &rs, regQuery+to_string(instrs[i].R.rs) + ";", register_callback);
-				sqlQuery(db, &rt, regQuery+to_string(instrs[i].R.rt) + ";", register_callback);
-				sqlQuery(db, &rd, regQuery+to_string(instrs[i].R.rd) + ";", register_callback);
-				*out += (irow.rd ? (rd.mnemonic + string(", ")) : string(""))
-					+ (irow.rs ? (rs.mnemonic + string(", ")) : string(""))
-					+ (irow.rt ? (rt.mnemonic + ((irow.shamt || !irow.rd) ? string(", ") 
+				registerRow rrs, rrt, rrd;
+				sqlQuery(db, &rrs, regQuery+to_string(rs)+";", register_callback);
+				sqlQuery(db, &rrt, regQuery+to_string(rt)+";", register_callback);
+				sqlQuery(db, &rrd, regQuery+to_string(rd)+";", register_callback);
+				*out += (irow.rd ? ("$"+rrd.mnemonic + string(", ")) : string(""))
+					+ (irow.rs ? ("$"+rrs.mnemonic + string(", ")) : string(""))
+					+ (irow.rt ? ("$"+rrt.mnemonic + ((irow.shamt || !irow.rd) ? string(", ") 
 						: string(" "))) : string(""))
-					+ (irow.shamt ? to_string(instrs[i].R.shamt) : string(""))
+					+ (irow.shamt ? to_string(shamt) : string(""))
 					+ string("\n");
 				} break;
 			case 'I': {
-				registerRow rs, rt;
-				sqlQuery(db, &rs, regQuery+to_string(instrs[i].R.rs) + ";", register_callback);
-				sqlQuery(db, &rt, regQuery+to_string(instrs[i].R.rt) + ";", register_callback);
+				registerRow rrs, rrt;
+				sqlQuery(db, &rrs, regQuery+to_string(rs)+";", register_callback);
+				sqlQuery(db, &rrt, regQuery+to_string(rt)+";", register_callback);
 				*out += irow.paren 
-					? ((irow.rt ? (rt.mnemonic + string(", ")) : string(""))
-						+ to_string(instrs[i].I.immediate) + string("(")
-						+ (irow.rs ? rs.mnemonic : string("")) + string(")\n"))
-					: ((irow.rt ? (rt.mnemonic + ", ") : "")
-						+ (irow.rs ? rs.mnemonic + ", " : "")
-						+ to_string(instrs[i].I.immediate) + "\n");
+					? ((irow.rt ? ("$"+rrt.mnemonic + string(", ")) : string(""))
+						+ to_string(immediate) + string("(")
+						+ (irow.rs ? "$"+rrs.mnemonic : string("")) + string(")\n"))
+					: ((irow.rt ? ("$"+rrt.mnemonic + ", ") : "")
+						+ (irow.rs ? "$"+rrs.mnemonic + ", " : "")
+						+ to_string(immediate) + "\n");
 				} break;
 			case 'J': {
-				*out += to_string(instrs[i].J.address) + "\n";
+				*out += to_string(addr) + "\n";
 				} break;
 			default: //shouldn't happen
 				break;
