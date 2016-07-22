@@ -53,7 +53,7 @@ static void sqlQuery(sqlite3* db, void* param, string sql, int (*callback)(void*
 	}
 }
 
-void MIPS::disassemble(uint8_t* data, int len, string* out) {
+void MIPS::disassemble(uint8_t* data, int len, vector<Instruction>* out, uint64_t offset) {
 	sqlite3* db;
 
 	if(sqlite3_open("../../data/mips.db", &db)) {
@@ -62,13 +62,15 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 		throw err;
 	}
 
-	stringstream s;
 
 	instructionRow irow;
 	string instrQuery = "select * from instruction where opcode = ";
 	string regQuery = "select * from register where number = ";
 	// each instr is 4 bytes long
 	for(int i = 0; i < len; i += 4) {
+		Instruction instr = Instruction();
+		stringstream s;
+
 		uint8_t opcode = data[i+0] >> 2;
 		uint8_t rs = (((data[i+0] << 3)) & 0x18) | (data[i+1] >> 5);
 		uint8_t rt = data[i+1] & 0x1f;
@@ -91,6 +93,8 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 				instruction_callback);
 		}
 
+		instr.setAddress(offset + i);
+		instr.addToken(irow.mnemonic);
 		s << showbase << irow.mnemonic << "\t";
 
 		switch(irow.type) {
@@ -103,38 +107,54 @@ void MIPS::disassemble(uint8_t* data, int len, string* out) {
 					<< (irow.rs ? ("$"+rrs.mnemonic+string(", ")) : string(""))
 					<< (irow.rt ? ("$"+rrt.mnemonic+((irow.shamt||!irow.rd) ? string(", ") 
 						: string(" "))) : string(""))
-					<< (irow.shamt ? to_string(shamt) : string(""))
-					<< string("\n");
+					<< (irow.shamt ? to_string(shamt) : string(""));
+				instr.addToken(rrs.mnemonic);
+				instr.addToken(rrt.mnemonic);
+				instr.addToken(to_string(shamt));
 				} break;
 			case 'I': {
 				registerRow rrs, rrt;
 				sqlQuery(db, &rrs, regQuery+to_string(rs)+";", register_callback);
 				sqlQuery(db, &rrt, regQuery+to_string(rt)+";", register_callback);
-				irow.paren 
-					? s << (irow.rt ? (string("$")+rrt.mnemonic + string(", ")) : string(""))
+				if(irow.paren) {
+					s << (irow.rt ? (string("$")+rrt.mnemonic + string(", ")) : string(""))
 						<< immediate 
 						<< string("(")
 						<< (irow.rs ? string("$")+rrs.mnemonic : string("")) 
-						<< string(")\n")
-					: s << (irow.rt ? (string("$")+rrt.mnemonic + ", ") : "")
-						<< (irow.rs ? string("$")+rrs.mnemonic + ", " : "")
-						<< hex << immediate << dec
-						<< string("\n");
+						<< string(")");
+					instr.addToken(rrt.mnemonic);
+					instr.addToken(to_string(immediate));
+					instr.addToken(rrs.mnemonic);
+				} else {
+					instr.addToken(rrt.mnemonic);
+					instr.addToken(rrs.mnemonic);
+					s << (irow.rt ? (string("$")+rrt.mnemonic + ", ") : "")
+						<< (irow.rs ? string("$")+rrs.mnemonic + ", " : "");
+					if(irow.mnemonic == "beq" || irow.mnemonic == "bne") {
+						s << hex << offset + i + (immediate << 2) << dec;
+						instr.addToken(to_string(offset + i + (immediate << 2)));
+					} else {
+						s << hex << immediate << dec;
+						instr.addToken(to_string(immediate));
+					}
+				}
 				} break;
 			case 'J': {
-				s << hex << addr << dec << "\n";
+				s << hex << (addr<<2) << dec;
+				instr.addToken(to_string(addr));
 				} break;
 			default: //shouldn't happen
 				break;
 		}
+		
+		instr.setText(s.str());
+		out->push_back(instr);
 	}
 
 	sqlite3_close(db);
-
-	*out = s.str();
 }
 
-void MIPS::assemble(string asminstr, uint8_t** data, int* len) {
+void MIPS::assemble(vector<Instruction>* asminstr, uint8_t** data, int* len, uint64_t offset) {
 
 }
 
