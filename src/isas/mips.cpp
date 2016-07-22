@@ -131,8 +131,8 @@ void MIPS::disassemble(uint8_t* data, int len, vector<Instruction>* out, uint64_
 					s << (irow.rt ? (string("$")+rrt.mnemonic + ", ") : "")
 						<< (irow.rs ? string("$")+rrs.mnemonic + ", " : "");
 					if(irow.mnemonic == "beq" || irow.mnemonic == "bne") {
-						s << hex << offset + i + (immediate << 2) << dec;
-						instr.addToken(to_string(offset + i + (immediate << 2)));
+						s << hex << offset + i + 4 + (immediate << 2) << dec;
+						instr.addToken(to_string(offset + i + 4 + (immediate << 2)));
 					} else {
 						s << hex << immediate << dec;
 						instr.addToken(to_string(immediate));
@@ -140,8 +140,8 @@ void MIPS::disassemble(uint8_t* data, int len, vector<Instruction>* out, uint64_
 				}
 				} break;
 			case 'J': {
-				s << hex << (addr<<2) << dec;
-				instr.addToken(to_string(addr));
+				s << hex << (addr<<2) + 4 << dec;
+				instr.addToken(to_string(addr<<2 + 4));
 				} break;
 			default: //shouldn't happen
 				break;
